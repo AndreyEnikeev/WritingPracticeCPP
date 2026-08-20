@@ -5,8 +5,8 @@
 
 int main()
 {
-	int i[1]{ 0 };
-	CameraManager test = CameraManager(i);
-	test.StartCamera(0);
+	int indices[] { 2, 1, 0};
+	CameraManager test(indices, sizeof(indices) / sizeof(indices[0]));
+	test.StartCameras_ToCheckWork();
     return 0;
 }

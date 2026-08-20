@@ -4,65 +4,76 @@
 class CameraManager
 {
 public:
-    explicit CameraManager(int index[], size_t countIndex) {
-        for (size_t i = 0; i < countIndex && i < countsCamers; i++)
-        {
-            cameras[i].open(index[i], cv::VideoCaptureAPIs::CAP_DSHOW);
-            cameras[i].set(cv::CAP_PROP_FRAME_WIDTH, WidthFrames);
-            cameras[i].set(cv::CAP_PROP_FRAME_HEIGHT, HeightFrames);
-            cameras[i].set(cv::CAP_PROP_FPS, 60);
-            cameras[i].set(cv::CAP_PROP_BITRATE, bitrate);
-            openCamers++;
-        }
+    /// <summary>Создание класса</summary>
+    explicit CameraManager() {}
+    /// <summary>Создание класса с заране указаным количеством камером</summary>
+    /// <param name="index">Индексы камеры в системе</param>
+    /// <param name="countIndex">Количество камер</param>
+    explicit CameraManager(int index[], size_t countIndex)
+    {
+        CreatCameras(index, countIndex);
     }
-    /*Примеры для себя с vector
-    explicit CameraManager(size_t count) : cameras(count) {
-        for (size_t i = 0; i < count; ++i) {
-            cameras[i].open(static_cast<int>(i));
-        }
-    }
-    explicit CameraManager(const std::vector<int>& indices) : cameras(indices.size()) {
-        for (size_t i = 0; i < indices.size(); ++i) {
-            cameras[i].open(indices[i]);
-        }
-    }
-    explicit CameraManager(const std::vector<int>& indices) {
-        cameras.reserve(indices.size());
-        for (int idx : indices) {
-            cameras.emplace_back(idx);
-        }
-    }*/
+    /// <summary>Диструктор</summary>
     ~CameraManager()
     {
         StopCameras_All();
-        for (cv::VideoCapture camera : cameras)
+        for (cv::VideoCapture& camera : cameras)
         {
             camera.release();
         }
+        for (cv::Mat& frame : lastFrames)
+        {
+            frame.release();
+        }
     }
-    void StartCameras_All();
+    /// <summary>Запуск всех камер с выводом в окна OpenCV</summary>
+    void StartCameras_ToCheckWork();
+    /// <summary>Остановка камер/потоков на получения кадров</summary>
     void StopCameras_All();
+    /// <summary>Создание камер</summary>
+    /// <param name="index">Индексы камеры в системе</param>
+    /// <param name="countIndex">Количество камер</param>
+    void CreatCameras(int index[], size_t countIndex);
 
-
+    CameraManager(const CameraManager&) = delete;
+    CameraManager& operator=(const CameraManager&) = delete;
+    CameraManager(CameraManager&&) = delete;
+    CameraManager& operator=(CameraManager&&) = delete;
 
 protected:
     /// <summary>Ширина кадров</summary>
-    const int WidthFrames = 1280;
+    const double WidthFrames = 1280;
     /// <summary>Высота кадров</summary>
-    const int HeightFrames = 720;
+    const double HeightFrames = 720;
+    /// <summary>Стандартный FPS камер</summary>
+    const double FPSStandard = 60;
+    /// <summary>FPS камеры на экран</summary>
+    const double FPSScreenCamera = 120;
+    /// <summary>Битрейт с которым записываются видео</summary>
+    const double bitrate = 7500000;
 private:
+    /// <summary>Буфер для кадров/Вектор кадров получаемых с камер для передачи из потоков</summary>
+    std::vector<cv::Mat> lastFrames;
+    /// <summary>Синхронизаторы потоков</summary>
+    std::deque<std::mutex> frameMutexes;
+    /// <summary>Вектор потоков для работы камер</summary>
     std::vector<std::thread> threadsCameras;
+    /// <summary>Флаг для остановки всех потоков</summary>
     std::atomic<bool> workFlag = false;
-    /// <summary>Максимальное количество камер</summary>
-    const size_t countsCamers = 4;
+    /// <summary>Массив камер, последняя считается камерой для лазера</summary>
+    std::vector <cv::VideoCapture> cameras;
     /// <summary>Количество открытых и запущеных камер</summary>
     size_t openCamers = 0;
-    /// <summary>Битрейт с которым записываются видео</summary>
-    const int bitrate = 7500000;
-    cv::Mat clearFrame;
-    /// <summary>Массив камер</summary>
-    /// <remarks>1 камера сбоку<para/>2 Перед<para/>3 Верх<para/>4 Экран </remarks>
-    cv::VideoCapture cameras[4];
-    void StartCamera(int index);
-    void readFrame(cv::VideoCapture& camera);
+    /// <summary>Запуск потока камеры на получения кадров</summary>
+    /// <param name="index">Индекс камеры в классе</param>
+    void StartThreadReadFrame(int index);
+    /// <summary>Считывания кадра с камеры и помещения в буфер</summary>
+    /// <param name="index">Индекс камеры в классе</param>
+    void ReadFrame(int index);
+    /// <summary>Установка параметров для камеры, которая смотрит не на экран</summary>
+    /// <param name="camera">Камера для настройки</param>
+    void SetParametersCameraStandard(cv::VideoCapture& camera) const;
+    /// <summary>Установка параметров для камеры, которая смотрит на экран</summary>
+    /// <param name="camera">Камера для настройки</param>
+    void SetParametersCameraScreen(cv::VideoCapture& camera) const;
 };
