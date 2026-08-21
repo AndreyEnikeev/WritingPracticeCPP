@@ -1,9 +1,12 @@
 #pragma once
 #include <opencv2/opencv.hpp>
+#include <chrono>
 
 class CameraManager
 {
 public:
+    using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
+    using Duration = std::chrono::steady_clock::duration;
     /// <summary>Создание класса</summary>
     explicit CameraManager() {}
     /// <summary>Создание класса с заране указаным количеством камером</summary>
@@ -34,6 +37,10 @@ public:
     /// <param name="index">Индексы камеры в системе</param>
     /// <param name="countIndex">Количество камер</param>
     void CreatCameras(int index[], size_t countIndex);
+    bool getFrame(size_t index, cv::Mat& out, Duration* durationSinceStart = nullptr) const;
+    bool getFrameWithReadyFlag(size_t index, cv::Mat& out, Duration* durationSinceStart = nullptr) const;
+    bool getScreenFrame(cv::Mat& out, Duration* durationSinceStart = nullptr) const;
+    bool getScreenFrameWithReadyFlag(cv::Mat& out, Duration* durationSinceStart = nullptr) const;
 
     CameraManager(const CameraManager&) = delete;
     CameraManager& operator=(const CameraManager&) = delete;
@@ -54,8 +61,14 @@ protected:
 private:
     /// <summary>Буфер для кадров/Вектор кадров получаемых с камер для передачи из потоков</summary>
     std::vector<cv::Mat> lastFrames;
+    /// <summary>момент запуска камер</summary>
+    TimePoint startTime;
+    /// <summary>Вектор времени прихода кадра</summary>
+    std::vector<TimePoint> timesFrame;
     /// <summary>Синхронизаторы потоков</summary>
-    std::deque<std::mutex> frameMutexes;
+    mutable std::deque<std::mutex> frameMutexes;
+    /// <summary>Флаг, что кадр обновлён</summary>
+    mutable std::deque<std::atomic<bool>> hasNewFrame;
     /// <summary>Вектор потоков для работы камер</summary>
     std::vector<std::thread> threadsCameras;
     /// <summary>Флаг для остановки всех потоков</summary>
@@ -76,4 +89,6 @@ private:
     /// <summary>Установка параметров для камеры, которая смотрит на экран</summary>
     /// <param name="camera">Камера для настройки</param>
     void SetParametersCameraScreen(cv::VideoCapture& camera) const;
+
+    std::string timeToString(const Duration& time);
 };
